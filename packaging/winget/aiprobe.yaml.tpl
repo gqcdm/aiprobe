@@ -1,0 +1,5 @@
+PackageIdentifier: gqcdm.aiprobe
+PackageVersion: {{VERSION}}
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0
