@@ -59,14 +59,17 @@ func TestDetectionPrecedence(t *testing.T) {
 	if output.Detection.Provider != schema.ProviderGemini {
 		t.Fatalf("expected gemini provider, got %q", output.Detection.Provider)
 	}
-	if geminiCalled != 0 || openAICalled != 0 {
-		t.Fatalf("expected strong static fingerprint to exit early without probes, got openai=%d gemini=%d", openAICalled, geminiCalled)
+	if geminiCalled != 1 || openAICalled != 0 {
+		t.Fatalf("expected strong static fingerprint to narrow probing to gemini only, got openai=%d gemini=%d", openAICalled, geminiCalled)
 	}
 	if output.Diagnostics.Status != "skipped" {
 		t.Fatalf("expected diagnostics to stay skipped during detect, got %q", output.Diagnostics.Status)
 	}
 	if len(output.Detection.Evidence) == 0 {
 		t.Fatal("expected detection evidence to be recorded")
+	}
+	if output.Detection.ModelListSource != "probe" {
+		t.Fatalf("expected probe model source, got %q", output.Detection.ModelListSource)
 	}
 }
 

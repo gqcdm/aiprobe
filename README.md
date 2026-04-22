@@ -40,7 +40,7 @@ aiprobe detect --base-url https://example.com/v1 --api-key YOUR_KEY
 - API type
 - 置信度
 - 规范化后的 URL
-- 模型数量
+- 探测到的模型列表或模型数量
 
 如果你想拿到结构化输出：
 

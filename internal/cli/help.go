@@ -25,8 +25,6 @@ Usage:
 
 Flags:
   --format <text|json>   Output format
-  --provider <name>      Optional provider hint
-  --type <name>          Optional API type hint
   -h, --help   Show help for detect
 `
 

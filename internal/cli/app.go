@@ -61,8 +61,6 @@ func (a *App) runDetect(args []string) error {
 	baseURL := cmd.String("base-url", "", "API base URL")
 	apiKey := cmd.String("api-key", "", "API key")
 	format := cmd.String("format", "text", "Output format: text or json")
-	provider := cmd.String("provider", "", "Optional provider hint")
-	apiType := cmd.String("type", "", "Optional API type hint")
 	if err := cmd.Parse(args); err != nil {
 		return err
 	}
@@ -74,7 +72,6 @@ func (a *App) runDetect(args []string) error {
 	if err != nil {
 		return err
 	}
-	applyHints(&output, *provider, *apiType)
 
 	return render.Write(a.stdout, output, *format)
 }
@@ -142,20 +139,6 @@ func wantsHelp(args []string) bool {
 	}
 
 	return false
-}
-
-func applyHints(output *schema.Output, provider, apiType string) {
-	if output == nil {
-		return
-	}
-	provider = strings.TrimSpace(provider)
-	apiType = strings.TrimSpace(apiType)
-	if provider != "" {
-		output.Warnings = append(output.Warnings, fmt.Sprintf("provider hint received: %s", provider))
-	}
-	if apiType != "" {
-		output.Warnings = append(output.Warnings, fmt.Sprintf("type hint received: %s", apiType))
-	}
 }
 
 type exitCodeError struct {

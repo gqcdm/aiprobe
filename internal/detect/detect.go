@@ -90,13 +90,12 @@ func (e *Engine) Detect(input Input) (schema.Output, error) {
 			Kind:    schema.FailureAmbiguousDetection,
 		})
 		return output, nil
-	} else if resolved.Provider != schema.ProviderUnknown && resolved.Confidence == schema.ConfidenceHigh {
+	} else if resolved.Provider != schema.ProviderUnknown {
 		output.Detection.Provider = resolved.Provider
 		output.Detection.APIType = resolved.APIType
 		output.Detection.Confidence = resolved.Confidence
 		output.Detection.Evidence = append(output.Detection.Evidence, resolved.Evidence...)
 		output.Detection.CandidateProviders = []schema.Provider{resolved.Provider}
-		return output, nil
 	}
 
 	candidates := adaptersForProviders(e.adapters, candidateProviders(static))
@@ -130,6 +129,9 @@ func (e *Engine) Detect(input Input) (schema.Output, error) {
 
 	if resolved.Provider == schema.ProviderUnknown {
 		output.Detection.Evidence = append(output.Detection.Evidence, collectEvidence(results)...)
+		if output.Detection.Provider != schema.ProviderUnknown {
+			return output, nil
+		}
 		return output, nil
 	}
 
