@@ -27,6 +27,7 @@ func TestJSONContract(t *testing.T) {
 			SampleCount:  0,
 			FailureKind:  FailureDiagnosticsSkipped,
 		},
+		ModelDiagnostics: []ModelDiagnostics{{ModelID: "gpt-4.1", Status: "ok", Available: true, TTFTMS: LatencyMS{Min: 10, P50: 10, Max: 10, Avg: 10}, SampleCount: 1, SuccessCount: 1}},
 		Errors:   []ErrorDetail{{Code: "none", Message: "", Kind: ""}},
 		Warnings: []string{"safe warning"},
 	}
@@ -37,7 +38,7 @@ func TestJSONContract(t *testing.T) {
 	}
 
 	serialized := string(raw)
-	for _, field := range []string{"\"input\"", "\"normalized_base_url\"", "\"detection\"", "\"models\"", "\"diagnostics\"", "\"errors\"", "\"warnings\""} {
+	for _, field := range []string{"\"input\"", "\"normalized_base_url\"", "\"detection\"", "\"models\"", "\"diagnostics\"", "\"model_diagnostics\"", "\"errors\"", "\"warnings\""} {
 		if !strings.Contains(serialized, field) {
 			t.Fatalf("expected serialized output to contain %s, got %s", field, serialized)
 		}

@@ -42,6 +42,7 @@ type Output struct {
 	Detection         DetectionResult     `json:"detection"`
 	Models            []Model             `json:"models"`
 	Diagnostics       DiagnosticsResult   `json:"diagnostics"`
+	ModelDiagnostics  []ModelDiagnostics  `json:"model_diagnostics,omitempty"`
 	Errors            []ErrorDetail       `json:"errors"`
 	Warnings          []string            `json:"warnings"`
 }
@@ -88,6 +89,17 @@ type DiagnosticsResult struct {
 	LatencyMS    LatencyMS   `json:"latency_ms"`
 	SampleCount  int         `json:"sample_count"`
 	StatusCode   int         `json:"status_code,omitempty"`
+	FailureKind  FailureKind `json:"failure_kind,omitempty"`
+}
+
+type ModelDiagnostics struct {
+	ModelID      string      `json:"model_id"`
+	Label        string      `json:"label,omitempty"`
+	Status       string      `json:"status"`
+	Available    bool        `json:"available"`
+	TTFTMS       LatencyMS   `json:"ttft_ms"`
+	SampleCount  int         `json:"sample_count"`
+	SuccessCount int         `json:"success_count,omitempty"`
 	FailureKind  FailureKind `json:"failure_kind,omitempty"`
 }
 
