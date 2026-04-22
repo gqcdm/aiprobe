@@ -1,0 +1,5 @@
+.sisyphus/evidence/
+dist/
+*.exe
+*.out
+*.test
