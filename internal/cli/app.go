@@ -109,6 +109,9 @@ func (a *App) newTestCmd() *cobra.Command {
 				}
 			} else {
 				output.Diagnostics = diagnostics.Run(adapter, diagnostics.Input{BaseURL: baseURL, APIKey: apiKey, Samples: samples})
+				modelDiagnostics, warnings := diagnostics.RunModelDiagnostics(output.Detection.Provider, baseURL, apiKey, output.Models, samples)
+				output.ModelDiagnostics = modelDiagnostics
+				output.Warnings = append(output.Warnings, warnings...)
 			}
 
 			if err := render.Write(a.stdout, output, format); err != nil {

@@ -14,7 +14,7 @@ func TestRenderJSONAndText(t *testing.T) {
 	if err := Write(text, output, "text"); err != nil {
 		t.Fatalf("text render failed: %v", err)
 	}
-	if !strings.Contains(text.String(), "Provider:") {
+	if !strings.Contains(text.String(), "Provider:") || !strings.Contains(text.String(), "Model Diagnostics:") {
 		t.Fatalf("unexpected text output %q", text.String())
 	}
 	jsonBuffer := &bytes.Buffer{}

@@ -129,6 +129,60 @@ func TestCompletionCommand(t *testing.T) {
 	}
 }
 
+func TestTestCommandIncludesModelDiagnostics(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			w.Header().Set("Content-Type", "application/json")
+			if got := r.Header.Get("Authorization"); got == "Bearer test-key" {
+				_, _ = fmt.Fprint(w, `{"data":[{"id":"gpt-4.1-mini","object":"model","owned_by":"openai"}]}`)
+				return
+			}
+			if got := r.Header.Get("x-api-key"); got == "test-key" {
+				_, _ = fmt.Fprint(w, `{"data":[]}`)
+				return
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = fmt.Fprint(w, `{"error":"unauthorized"}`)
+		case "/v1/chat/completions":
+			w.Header().Set("Content-Type", "text/event-stream")
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				t.Fatal("expected flusher")
+			}
+			_, _ = fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\n")
+			flusher.Flush()
+		case "/v1beta/models":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprint(w, `{"models":[]}`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	app := New()
+	app.stdout = stdout
+	app.stderr = stderr
+
+	err := app.Run([]string{"test", "--base-url", server.URL, "--api-key", "test-key", "--samples", "1", "--format", "json"})
+	if err != nil {
+		t.Fatalf("test command failed: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, `"model_diagnostics"`) || !strings.Contains(output, `"model_id": "gpt-4.1-mini"`) {
+		t.Fatalf("expected model diagnostics output, got %s", output)
+	}
+	if !strings.Contains(output, `"ttft_ms"`) {
+		t.Fatalf("expected ttft output, got %s", output)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
 func TestDetectUnknownProvider(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}

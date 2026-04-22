@@ -12,7 +12,7 @@ import (
 func Write(w io.Writer, output schema.Output, format string) error {
 	format = strings.TrimSpace(strings.ToLower(format))
 	if format == "" || format == "text" {
-		_, err := fmt.Fprintf(w, "Provider: %s\nAPI Type: %s\nConfidence: %s\nNormalized URL: %s\nModels: %d\nDiagnostics: %s\n", output.Detection.Provider, output.Detection.APIType, output.Detection.Confidence, output.NormalizedBaseURL, len(output.Models), output.Diagnostics.Status)
+		_, err := fmt.Fprintf(w, "Provider: %s\nAPI Type: %s\nConfidence: %s\nNormalized URL: %s\nModels: %d\nDiagnostics: %s\nModel Diagnostics: %d\n", output.Detection.Provider, output.Detection.APIType, output.Detection.Confidence, output.NormalizedBaseURL, len(output.Models), output.Diagnostics.Status, len(output.ModelDiagnostics))
 		return err
 	}
 	if format != "json" {
