@@ -26,6 +26,16 @@ go build -o aiprobe ./cmd/aiprobe
 ./aiprobe --help
 ```
 
+### 方式三：通过 `yay` / AUR 安装
+
+当 AUR 包发布后，可以直接：
+
+```bash
+yay -S aiprobe
+```
+
+仓库里已经包含 `PKGBUILD`、`.SRCINFO` 和对应的 GitHub Actions workflow，用来校验并产出 AUR 源码包描述文件。
+
 ## 用法
 
 ### 1. 自动探测接口
@@ -60,6 +70,39 @@ aiprobe test --base-url https://example.com/v1 --api-key YOUR_KEY
 aiprobe test --base-url https://example.com/v1 --api-key YOUR_KEY --samples 5 --format json
 ```
 
+### 3. 生成 shell 补全
+
+支持这些主流 shell：
+
+- `bash`
+- `zsh`
+- `fish`
+- `powershell`
+
+例如生成 `fish` 补全脚本：
+
+```bash
+aiprobe completion fish > ~/.config/fish/completions/aiprobe.fish
+```
+
+生成 `bash` 补全脚本：
+
+```bash
+aiprobe completion bash > ~/.local/share/bash-completion/completions/aiprobe
+```
+
+生成 `zsh` 补全脚本：
+
+```bash
+aiprobe completion zsh > ~/.zfunc/_aiprobe
+```
+
+生成 `PowerShell` 补全脚本：
+
+```powershell
+aiprobe completion powershell > aiprobe.ps1
+```
+
 ## 输出说明
 
 `detect` 和 `test` 都支持两种输出：
@@ -84,6 +127,19 @@ aiprobe test --base-url https://example.com/v1 --api-key YOUR_KEY --samples 5 --
 ```bash
 go test ./...
 ```
+
+## 自动发布
+
+仓库已经包含 GitHub Actions 自动发布流程。
+
+当你 push 一个形如 `v0.1.2` 的 tag 到 GitHub 时，workflow 会自动：
+
+- 执行 `go test ./...`
+- 交叉编译 `linux / darwin / windows`
+- 创建对应的 GitHub Release
+- 上传编译产物附件
+
+另外还包含一个 AUR 打包 workflow，会在 tag 或手动触发时校验 `PKGBUILD` / `.SRCINFO`，并产出可用于 AUR 发布的源码包描述附件。
 
 ## 设计原则
 

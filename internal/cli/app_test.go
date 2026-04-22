@@ -15,15 +15,17 @@ import (
 func TestRunRootHelp(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	app := &App{stdout: stdout, stderr: stderr}
+	app := New()
+	app.stdout = stdout
+	app.stderr = stderr
 
 	if err := app.Run([]string{"--help"}); err != nil {
 		t.Fatalf("Run returned error: %v", err)
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "detect") || !strings.Contains(output, "test") {
-		t.Fatalf("expected help output to mention detect and test, got %q", output)
+	if !strings.Contains(output, "detect") || !strings.Contains(output, "test") || !strings.Contains(output, "completion") {
+		t.Fatalf("expected help output to mention detect, test, and completion, got %q", output)
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("expected no stderr output, got %q", stderr.String())
@@ -32,7 +34,10 @@ func TestRunRootHelp(t *testing.T) {
 
 func TestDetectHelp(t *testing.T) {
 	stdout := &bytes.Buffer{}
-	app := &App{stdout: stdout, stderr: &bytes.Buffer{}, engine: nil}
+	stderr := &bytes.Buffer{}
+	app := New()
+	app.stdout = stdout
+	app.stderr = stderr
 
 	if err := app.Run([]string{"detect", "--help"}); err != nil {
 		t.Fatalf("Run returned error: %v", err)
@@ -57,20 +62,19 @@ func TestDetectRequiresFlags(t *testing.T) {
 func TestUnknownSubcommandFailsCleanly(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	app := &App{stdout: stdout, stderr: stderr}
+	app := New()
+	app.stdout = stdout
+	app.stderr = stderr
 
 	err := app.Run([]string{"nope"})
 	if err == nil {
 		t.Fatal("expected error for unknown subcommand")
 	}
-	if !strings.Contains(err.Error(), "unknown subcommand") {
-		t.Fatalf("expected unknown subcommand error, got %v", err)
+	if !strings.Contains(err.Error(), "unknown command") {
+		t.Fatalf("expected unknown command error, got %v", err)
 	}
-	if !strings.Contains(stdout.String(), "Usage:") {
-		t.Fatalf("expected help output on stdout, got %q", stdout.String())
-	}
-	if stderr.Len() != 0 {
-		t.Fatalf("expected no stderr writes from App.Run, got %q", stderr.String())
+	if stdout.Len() != 0 || stderr.Len() != 0 {
+		t.Fatalf("expected cobra with SilenceUsage/SilenceErrors to avoid direct output, got stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
 }
 
@@ -87,6 +91,7 @@ func TestDetectCommand(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	app := &App{stdout: stdout, stderr: stderr, engine: detect.NewEngine(stubCLIAdapter{})}
+	app.root = app.newRootCmd()
 
 	err := app.Run([]string{"detect", "--base-url", server.URL, "--api-key", "test-key", "--format", "json"})
 	if err != nil {
@@ -104,10 +109,31 @@ func TestDetectCommand(t *testing.T) {
 	}
 }
 
+func TestCompletionCommand(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	app := New()
+	app.stdout = stdout
+	app.stderr = stderr
+
+	err := app.Run([]string{"completion", "fish"})
+	if err != nil {
+		t.Fatalf("completion command failed: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "complete -c aiprobe") {
+		t.Fatalf("expected fish completion output, got %q", output)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected empty stderr, got %q", stderr.String())
+	}
+}
+
 func TestDetectUnknownProvider(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	app := &App{stdout: stdout, stderr: stderr, engine: detect.NewEngine()}
+	app.root = app.newRootCmd()
 
 	err := app.Run([]string{"detect", "--base-url", "https://example.invalid", "--api-key", "test-key", "--format", "json"})
 	if err != nil {
