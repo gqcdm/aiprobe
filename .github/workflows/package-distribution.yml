@@ -1,0 +1,93 @@
+name: package-distribution
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  package-distribution:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Set version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Build and archive release binaries
+        run: |
+          mkdir -p dist/linux dist/macos dist/windows dist/manifests
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/linux/aiprobe ./cmd/aiprobe
+          tar -C dist/linux -czf dist/aiprobe-v${VERSION}-linux-amd64.tar.gz aiprobe
+
+          GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/macos/aiprobe ./cmd/aiprobe
+          tar -C dist/macos -czf dist/aiprobe-v${VERSION}-darwin-amd64.tar.gz aiprobe
+
+          GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o dist/macos/aiprobe ./cmd/aiprobe
+          tar -C dist/macos -czf dist/aiprobe-v${VERSION}-darwin-arm64.tar.gz aiprobe
+
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/windows/aiprobe.exe ./cmd/aiprobe
+          cd dist/windows && zip -q ../aiprobe-v${VERSION}-windows-amd64.zip aiprobe.exe && cd ../..
+
+      - name: Install nfpm
+        uses: goreleaser/nfpm-action@v1
+        with:
+          version: latest
+
+      - name: Build deb and rpm packages
+        run: |
+          sed "s/{{VERSION}}/${VERSION}/g" packaging/nfpm.yaml.tpl > packaging/nfpm.yaml
+          nfpm package --config packaging/nfpm.yaml --packager deb --target dist/aiprobe_${VERSION}_amd64.deb
+          nfpm package --config packaging/nfpm.yaml --packager rpm --target dist/aiprobe-${VERSION}-1.x86_64.rpm
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum aiprobe-v${VERSION}-darwin-amd64.tar.gz > checksums.txt
+          sha256sum aiprobe-v${VERSION}-darwin-arm64.tar.gz >> checksums.txt
+          sha256sum aiprobe-v${VERSION}-windows-amd64.zip >> checksums.txt
+          sha256sum aiprobe_${VERSION}_amd64.deb >> checksums.txt
+          sha256sum aiprobe-${VERSION}-1.x86_64.rpm >> checksums.txt
+
+      - name: Generate package manager manifests
+        run: |
+          DARWIN_AMD64_SHA=$(sha256sum dist/aiprobe-v${VERSION}-darwin-amd64.tar.gz | awk '{print $1}')
+          DARWIN_ARM64_SHA=$(sha256sum dist/aiprobe-v${VERSION}-darwin-arm64.tar.gz | awk '{print $1}')
+          WINDOWS_AMD64_SHA=$(sha256sum dist/aiprobe-v${VERSION}-windows-amd64.zip | awk '{print $1}')
+          sed -e "s/{{VERSION}}/${VERSION}/g" -e "s/{{SHA256_DARWIN_AMD64}}/${DARWIN_AMD64_SHA}/g" -e "s/{{SHA256_DARWIN_ARM64}}/${DARWIN_ARM64_SHA}/g" packaging/homebrew/aiprobe.rb.tpl > dist/manifests/aiprobe.rb
+          sed -e "s/{{VERSION}}/${VERSION}/g" -e "s/{{SHA256_WINDOWS_AMD64}}/${WINDOWS_AMD64_SHA}/g" packaging/scoop/aiprobe.json.tpl > dist/manifests/aiprobe.json
+          sed -e "s/{{VERSION}}/${VERSION}/g" packaging/winget/aiprobe.yaml.tpl > dist/manifests/aiprobe.yaml
+          sed -e "s/{{VERSION}}/${VERSION}/g" packaging/winget/aiprobe.locale.en-US.yaml.tpl > dist/manifests/aiprobe.locale.en-US.yaml
+          sed -e "s/{{VERSION}}/${VERSION}/g" -e "s/{{SHA256_WINDOWS_AMD64}}/${WINDOWS_AMD64_SHA}/g" packaging/winget/aiprobe.installer.yaml.tpl > dist/manifests/aiprobe.installer.yaml
+
+      - name: Upload package distribution artifacts to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/aiprobe-v${{ env.VERSION }}-linux-amd64.tar.gz
+            dist/aiprobe-v${{ env.VERSION }}-darwin-amd64.tar.gz
+            dist/aiprobe-v${{ env.VERSION }}-darwin-arm64.tar.gz
+            dist/aiprobe-v${{ env.VERSION }}-windows-amd64.zip
+            dist/aiprobe_${{ env.VERSION }}_amd64.deb
+            dist/aiprobe-${{ env.VERSION }}-1.x86_64.rpm
+            dist/checksums.txt
+            dist/manifests/aiprobe.rb
+            dist/manifests/aiprobe.json
+            dist/manifests/aiprobe.yaml
+            dist/manifests/aiprobe.locale.en-US.yaml
+            dist/manifests/aiprobe.installer.yaml

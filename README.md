@@ -36,6 +36,18 @@ yay -S aiprobe
 
 仓库里已经包含 `PKGBUILD`、`.SRCINFO` 和对应的 GitHub Actions workflow，用来校验并产出 AUR 源码包描述文件。
 
+### 方式四：主流系统包管理
+
+项目现在会额外生成这些分发产物或清单模板：
+
+- `Homebrew` formula 模板
+- `Scoop` manifest 模板
+- `winget` manifest 模板
+- `deb` 包
+- `rpm` 包
+
+其中 `Homebrew / Scoop / winget` 默认产出的是可提交到各自外部仓库的清单模板，不代表这些源已经自动收录；`deb / rpm` 会直接生成包文件并作为 release 附件上传。
+
 ## 用法
 
 ### 1. 自动探测接口
@@ -140,6 +152,17 @@ go test ./...
 - 上传编译产物附件
 
 另外还包含一个 AUR 打包 workflow，会在 tag 或手动触发时校验 `PKGBUILD` / `.SRCINFO`，并产出可用于 AUR 发布的源码包描述附件。
+
+此外还包含一个主流分发 workflow，会在 tag 或手动触发时生成：
+
+- `darwin` 压缩包（用于 `Homebrew`）
+- `windows` 压缩包（用于 `Scoop` / `winget`）
+- `deb`
+- `rpm`
+- 对应 `sha256` 校验和
+- `Homebrew / Scoop / winget` 清单模板
+
+这些模板和包文件都会作为 GitHub Release 附件上传，方便后续分发。
 
 ## 设计原则
 
