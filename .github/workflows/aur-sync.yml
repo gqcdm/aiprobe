@@ -1,0 +1,91 @@
+name: aur-sync
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  aur-sync:
+    runs-on: ubuntu-latest
+    env:
+      AUR_REPO: ssh://aur@aur.archlinux.org/aiprobe.git
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate release metadata
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          test -f PKGBUILD
+          test -f .SRCINFO
+
+          TAG_VERSION="${VERSION#v}"
+          PKGBUILD_VERSION="$(grep '^pkgver=' PKGBUILD | cut -d'=' -f2)"
+          SRCINFO_VERSION="$(awk -F ' = ' '/^[[:space:]]*pkgver = / {print $2; exit}' .SRCINFO)"
+
+          if [ "${PKGBUILD_VERSION}" != "${TAG_VERSION}" ]; then
+            echo "PKGBUILD pkgver (${PKGBUILD_VERSION}) does not match tag (${TAG_VERSION})" >&2
+            exit 1
+          fi
+
+          if [ "${SRCINFO_VERSION}" != "${TAG_VERSION}" ]; then
+            echo ".SRCINFO pkgver (${SRCINFO_VERSION}) does not match tag (${TAG_VERSION})" >&2
+            exit 1
+          fi
+
+          grep -F '/archive/refs/tags/v${pkgver}.tar.gz' PKGBUILD >/dev/null
+
+      - name: Configure SSH
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AUR_SSH_PRIVATE_KEY}" ]; then
+            echo "AUR_SSH_PRIVATE_KEY secret is required" >&2
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${AUR_SSH_PRIVATE_KEY}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+
+          if [ -n "${AUR_KNOWN_HOSTS}" ]; then
+            printf '%s\n' "${AUR_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -H aur.archlinux.org > ~/.ssh/known_hosts
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync package metadata to AUR
+        env:
+          VERSION: ${{ github.ref_name }}
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=~/.ssh/known_hosts
+        run: |
+          set -euo pipefail
+
+          git clone "${AUR_REPO}" aur-repo
+          git -C aur-repo config user.name "github-actions[bot]"
+          git -C aur-repo config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          cp PKGBUILD .SRCINFO aur-repo/
+
+          if [ -z "$(git -C aur-repo status --porcelain -- PKGBUILD .SRCINFO)" ]; then
+            echo "No AUR metadata changes to sync"
+            exit 0
+          fi
+
+          git -C aur-repo add PKGBUILD .SRCINFO
+          git -C aur-repo commit -m "Update package metadata for ${VERSION}"
+          git -C aur-repo push origin HEAD:master
