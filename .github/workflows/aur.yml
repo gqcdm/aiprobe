@@ -1,0 +1,39 @@
+name: aur-package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  aur-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Arch packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y devscripts fakeroot
+
+      - name: Validate AUR files exist
+        run: |
+          test -f PKGBUILD
+          test -f .SRCINFO
+
+      - name: Create AUR source package artifact
+        run: |
+          mkdir -p dist
+          tar -czf dist/aiprobe-aur-package.tar.gz PKGBUILD .SRCINFO README.md
+
+      - name: Upload AUR package artifact to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/aiprobe-aur-package.tar.gz
