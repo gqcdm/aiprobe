@@ -82,6 +82,8 @@ aiprobe test --base-url https://example.com/v1 --api-key YOUR_KEY
 aiprobe test --base-url https://example.com/v1 --api-key YOUR_KEY --samples 5 --format json
 ```
 
+JSON 输出现在还会包含 `model_diagnostics`，用于展示每个探测到的模型是否可用，以及对应的首 token 延迟采样汇总（`ttft_ms`）。
+
 ### 3. 生成 shell 补全
 
 支持这些主流 shell：
