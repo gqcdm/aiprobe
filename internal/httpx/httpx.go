@@ -66,6 +66,19 @@ func NormalizeBaseURL(raw string) (string, error) {
 }
 
 func JoinURL(baseURL string, segments ...string) (string, error) {
+	return joinURLParts(baseURL, nil, segments)
+}
+
+func JoinVersionedURL(baseURL string, version string, segments ...string) (string, error) {
+	var versionParts []string
+	trimmedVersion := strings.Trim(version, "/ ")
+	if trimmedVersion != "" {
+		versionParts = strings.Split(trimmedVersion, "/")
+	}
+	return joinURLParts(baseURL, versionParts, segments)
+}
+
+func joinURLParts(baseURL string, versionParts []string, segments []string) (string, error) {
 	normalized, err := NormalizeBaseURL(baseURL)
 	if err != nil {
 		return "", err
@@ -76,14 +89,18 @@ func JoinURL(baseURL string, segments ...string) (string, error) {
 		return "", fmt.Errorf("parse normalized base URL: %w", err)
 	}
 
-	parts := make([]string, 0, len(segments)+1)
+	parts := make([]string, 0, len(versionParts)+len(segments)+1)
 	if parsed.Path != "" {
-		parts = append(parts, strings.Trim(parsed.Path, "/"))
+		parts = append(parts, splitPathSegments(parsed.Path)...)
+	}
+	if len(versionParts) > 0 {
+		parts = trimTrailingVersion(parts)
+		parts = append(parts, versionParts...)
 	}
 	for _, segment := range segments {
 		trimmed := strings.Trim(segment, "/ ")
 		if trimmed != "" {
-			parts = append(parts, trimmed)
+			parts = append(parts, splitPathSegments(trimmed)...)
 		}
 	}
 
@@ -94,6 +111,42 @@ func JoinURL(baseURL string, segments ...string) (string, error) {
 	}
 
 	return parsed.String(), nil
+}
+
+func splitPathSegments(raw string) []string {
+	trimmed := strings.Trim(raw, "/ ")
+	if trimmed == "" {
+		return nil
+	}
+	segments := strings.Split(trimmed, "/")
+	filtered := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		if segment != "" {
+			filtered = append(filtered, segment)
+		}
+	}
+	return filtered
+}
+
+func trimTrailingVersion(parts []string) []string {
+	if len(parts) == 0 {
+		return parts
+	}
+	last := strings.ToLower(strings.TrimSpace(parts[len(parts)-1]))
+	if isVersionSegment(last) {
+		return parts[:len(parts)-1]
+	}
+	return parts
+}
+
+func isVersionSegment(value string) bool {
+	switch value {
+	case "v1", "v1beta", "v1alpha":
+		return true
+	default:
+		return false
+	}
 }
 
 func RedactSecret(value string) string {

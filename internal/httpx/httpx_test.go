@@ -52,6 +52,22 @@ func TestNormalizeBaseURL(t *testing.T) {
 	if joined != "https://example.com/proxy/openai/v1/models" {
 		t.Fatalf("expected joined URL to preserve proxy path, got %q", joined)
 	}
+
+	versioned, err := JoinVersionedURL("https://example.com/v1", "v1", "models")
+	if err != nil {
+		t.Fatalf("JoinVersionedURL returned error: %v", err)
+	}
+	if versioned != "https://example.com/v1/models" {
+		t.Fatalf("expected versioned URL without duplicate v1, got %q", versioned)
+	}
+
+	proxiedVersioned, err := JoinVersionedURL("https://example.com/proxy/openai/v1/", "v1", "chat", "completions")
+	if err != nil {
+		t.Fatalf("JoinVersionedURL returned error: %v", err)
+	}
+	if proxiedVersioned != "https://example.com/proxy/openai/v1/chat/completions" {
+		t.Fatalf("expected versioned URL to preserve proxy path, got %q", proxiedVersioned)
+	}
 }
 
 func TestClassifyFailures(t *testing.T) {
