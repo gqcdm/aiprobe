@@ -35,6 +35,7 @@
 - **版本变更不是只打 tag。** 目前至少要同步：Git tag、`PKGBUILD`、`.SRCINFO`。
 - AUR 元数据不自动同步；`PKGBUILD` 和 `.SRCINFO` 必须人工保持一致。
 - AUR source URL 绑定 Git tag，tag 形态必须是 `vX.Y.Z`。
+- 默认使用中文发布：release 标题、release notes、发布说明、对外发布文案默认写中文；只有用户当次明确指定其他语言时才切换。
 
 ## GitHub Actions 分工
 - `.github/workflows/release.yml`
