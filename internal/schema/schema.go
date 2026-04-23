@@ -43,6 +43,7 @@ type Output struct {
 	Models            []Model             `json:"models"`
 	Diagnostics       DiagnosticsResult   `json:"diagnostics"`
 	ModelDiagnostics  []ModelDiagnostics  `json:"model_diagnostics,omitempty"`
+	SampleOutputs     []SampleOutput      `json:"sample_outputs,omitempty"`
 	Errors            []ErrorDetail       `json:"errors"`
 	Warnings          []string            `json:"warnings"`
 }
@@ -101,6 +102,17 @@ type ModelDiagnostics struct {
 	SampleCount  int         `json:"sample_count"`
 	SuccessCount int         `json:"success_count,omitempty"`
 	FailureKind  FailureKind `json:"failure_kind,omitempty"`
+}
+
+type SampleOutput struct {
+	ModelID     string      `json:"model_id"`
+	Label       string      `json:"label,omitempty"`
+	Kind        string      `json:"kind"`
+	Status      string      `json:"status"`
+	TextReply   string      `json:"text_reply,omitempty"`
+	ImagePath   string      `json:"image_path,omitempty"`
+	FailureKind FailureKind `json:"failure_kind,omitempty"`
+	Warning     string      `json:"warning,omitempty"`
 }
 
 type LatencyMS struct {
