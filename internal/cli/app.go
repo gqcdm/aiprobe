@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/gqcdm/aiprobe/internal/app"
@@ -34,6 +35,7 @@ func New() *App {
 }
 
 func (a *App) Run(args []string) error {
+	args = rewriteShortcutArgs(args)
 	a.root.SetOut(a.stdout)
 	a.root.SetErr(a.stderr)
 	a.root.SetArgs(args)
@@ -44,12 +46,94 @@ func (a *App) newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           app.Name,
 		Short:         "Auto-detect AI API providers and diagnostics",
+		Long:          "Auto-detect AI API providers and diagnostics. Use `aiprobe -t <base-url> <api-key>` for a one-shot test that lists available models and first-token latency.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	cmd.Flags().BoolP("test", "t", false, "Shortcut for `test` with positional <base-url> <api-key>")
 	cmd.CompletionOptions.DisableDefaultCmd = false
 	cmd.AddCommand(a.newDetectCmd(), a.newTestCmd())
 	return cmd
+}
+
+func rewriteShortcutArgs(args []string) []string {
+	if len(args) == 0 || !hasTestShortcut(args) || hasExplicitCommand(args) {
+		return args
+	}
+
+	rewritten := []string{"test"}
+	remaining := make([]string, 0, len(args)-1)
+	positionals := make([]string, 0, 2)
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "-t" || arg == "--test" {
+			continue
+		}
+
+		if consumesValue(arg) {
+			remaining = append(remaining, arg)
+			if i+1 < len(args) {
+				i++
+				remaining = append(remaining, args[i])
+			}
+			continue
+		}
+
+		if strings.HasPrefix(arg, "--base-url=") || strings.HasPrefix(arg, "--api-key=") || strings.HasPrefix(arg, "--format=") || strings.HasPrefix(arg, "--samples=") {
+			remaining = append(remaining, arg)
+			continue
+		}
+
+		if strings.HasPrefix(arg, "-") {
+			remaining = append(remaining, arg)
+			continue
+		}
+
+		if len(positionals) < 2 {
+			positionals = append(positionals, arg)
+			continue
+		}
+
+		remaining = append(remaining, arg)
+	}
+
+	if len(positionals) > 0 && !hasLongFlag(remaining, "--base-url") {
+		rewritten = append(rewritten, "--base-url", positionals[0])
+	}
+	if len(positionals) > 1 && !hasLongFlag(remaining, "--api-key") {
+		rewritten = append(rewritten, "--api-key", positionals[1])
+	}
+
+	return append(rewritten, remaining...)
+}
+
+func hasTestShortcut(args []string) bool {
+	return slices.Contains(args, "-t") || slices.Contains(args, "--test")
+}
+
+func hasExplicitCommand(args []string) bool {
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		return arg == "detect" || arg == "test" || arg == "completion"
+	}
+	return false
+}
+
+func consumesValue(arg string) bool {
+	return arg == "--base-url" || arg == "--api-key" || arg == "--format" || arg == "--samples"
+}
+
+func hasLongFlag(args []string, name string) bool {
+	prefix := name + "="
+	for _, arg := range args {
+		if arg == name || strings.HasPrefix(arg, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *App) newDetectCmd() *cobra.Command {
