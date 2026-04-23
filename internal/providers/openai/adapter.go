@@ -18,7 +18,7 @@ func (Adapter) Name() schema.Provider { return schema.ProviderOpenAICompatible }
 func (Adapter) APIType() string       { return "openai-compatible" }
 
 func (Adapter) Probe(baseURL, apiKey string) (detect.ProbeResult, error) {
-	endpoint, err := httpx.JoinURL(baseURL, "v1", "models")
+	endpoint, err := httpx.JoinVersionedURL(baseURL, "v1", "models")
 	if err != nil {
 		return detect.ProbeResult{}, err
 	}
@@ -75,7 +75,7 @@ func (Adapter) Probe(baseURL, apiKey string) (detect.ProbeResult, error) {
 var _ detect.Adapter = Adapter{}
 
 func ExampleURL(baseURL string) string {
-	url, _ := httpx.JoinURL(baseURL, "v1", "models")
+	url, _ := httpx.JoinVersionedURL(baseURL, "v1", "models")
 	return url
 }
 

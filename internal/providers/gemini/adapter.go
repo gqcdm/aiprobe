@@ -19,7 +19,7 @@ func (Adapter) Name() schema.Provider { return schema.ProviderGemini }
 func (Adapter) APIType() string       { return "gemini" }
 
 func (Adapter) Probe(baseURL, apiKey string) (detect.ProbeResult, error) {
-	endpoint, err := httpx.JoinURL(baseURL, "v1beta", "models")
+	endpoint, err := httpx.JoinVersionedURL(baseURL, "v1beta", "models")
 	if err != nil {
 		return detect.ProbeResult{}, err
 	}
@@ -72,6 +72,10 @@ func (Adapter) Probe(baseURL, apiKey string) (detect.ProbeResult, error) {
 	}
 	if len(payload.Models) == 0 {
 		result.FailureKind = schema.FailureReachableNoModelsExposed
+		return result, nil
+	}
+	if strings.TrimSpace(payload.Models[0].Name) == "" {
+		result.FailureKind = schema.FailureInvalidResponse
 		return result, nil
 	}
 

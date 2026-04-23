@@ -19,7 +19,7 @@ func (Adapter) Name() schema.Provider { return schema.ProviderAnthropic }
 func (Adapter) APIType() string       { return "anthropic" }
 
 func (Adapter) Probe(baseURL, apiKey string) (detect.ProbeResult, error) {
-	endpoint, err := httpx.JoinURL(baseURL, "v1", "models")
+	endpoint, err := httpx.JoinVersionedURL(baseURL, "v1", "models")
 	if err != nil {
 		return detect.ProbeResult{}, err
 	}
@@ -64,6 +64,10 @@ func (Adapter) Probe(baseURL, apiKey string) (detect.ProbeResult, error) {
 	}
 	if len(payload.Data) == 0 {
 		result.FailureKind = schema.FailureReachableNoModelsExposed
+		return result, nil
+	}
+	if payload.FirstID == "" && payload.LastID == "" {
+		result.FailureKind = schema.FailureInvalidResponse
 		return result, nil
 	}
 
