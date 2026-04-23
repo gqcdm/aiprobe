@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -179,7 +180,7 @@ func TestTestCommandIncludesModelDiagnostics(t *testing.T) {
 		t.Fatalf("expected ttft output, got %s", output)
 	}
 	if stderr.Len() != 0 {
-		t.Fatalf("expected empty stderr, got %q", stderr.String())
+		t.Fatalf("expected empty stderr for json output, got %q", stderr.String())
 	}
 }
 
@@ -234,7 +235,117 @@ func TestTestShortcutUsesPositionalBaseURLAndAPIKey(t *testing.T) {
 		t.Fatalf("expected redacted api key hint, got %s", output)
 	}
 	if stderr.Len() != 0 {
-		t.Fatalf("expected empty stderr, got %q", stderr.String())
+		t.Fatalf("expected empty stderr for json output, got %q", stderr.String())
+	}
+}
+
+func TestTestCommandShowsProgressForTextOutput(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			w.Header().Set("Content-Type", "application/json")
+			if got := r.Header.Get("Authorization"); got == "Bearer test-key" {
+				_, _ = fmt.Fprint(w, `{"data":[{"id":"gpt-4.1-mini","object":"model","owned_by":"openai"}]}`)
+				return
+			}
+			if got := r.Header.Get("x-api-key"); got == "test-key" {
+				_, _ = fmt.Fprint(w, `{"data":[]}`)
+				return
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = fmt.Fprint(w, `{"error":"unauthorized"}`)
+		case "/v1/chat/completions":
+			w.Header().Set("Content-Type", "text/event-stream")
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				t.Fatal("expected flusher")
+			}
+			_, _ = fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\n")
+			flusher.Flush()
+		case "/v1beta/models":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprint(w, `{"models":[]}`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	app := New()
+	app.stdout = stdout
+	app.stderr = stderr
+
+	err := app.Run([]string{"test", "--base-url", server.URL, "--api-key", "test-key", "--samples", "1"})
+	if err != nil {
+		t.Fatalf("test command failed: %v", err)
+	}
+
+	if !strings.Contains(stdout.String(), "Provider: openai-compatible") {
+		t.Fatalf("expected text output, got %q", stdout.String())
+	}
+	progress := stderr.String()
+	for _, needle := range []string{
+		"[1/4] Detecting provider and models...",
+		"[2/4] Running endpoint diagnostics (samples=1)...",
+		"[3/4] Running model diagnostics (1 models, samples=1)...",
+		"[4/4] Rendering result...",
+	} {
+		if !strings.Contains(progress, needle) {
+			t.Fatalf("expected progress output to contain %q, got %q", needle, progress)
+		}
+	}
+}
+
+func TestTestCommandJSONOutputRemainsClean(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			w.Header().Set("Content-Type", "application/json")
+			if got := r.Header.Get("Authorization"); got == "Bearer test-key" {
+				_, _ = fmt.Fprint(w, `{"data":[{"id":"gpt-4.1-mini","object":"model","owned_by":"openai"}]}`)
+				return
+			}
+			if got := r.Header.Get("x-api-key"); got == "test-key" {
+				_, _ = fmt.Fprint(w, `{"data":[]}`)
+				return
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = fmt.Fprint(w, `{"error":"unauthorized"}`)
+		case "/v1/chat/completions":
+			w.Header().Set("Content-Type", "text/event-stream")
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				t.Fatal("expected flusher")
+			}
+			_, _ = fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\n")
+			flusher.Flush()
+		case "/v1beta/models":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprint(w, `{"models":[]}`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	app := New()
+	app.stdout = stdout
+	app.stderr = stderr
+
+	err := app.Run([]string{"test", "--base-url", server.URL, "--api-key", "test-key", "--samples", "1", "--format", "json"})
+	if err != nil {
+		t.Fatalf("test command failed: %v", err)
+	}
+
+	if !json.Valid(stdout.Bytes()) {
+		t.Fatalf("expected valid json stdout, got %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected no progress stderr for json output, got %q", stderr.String())
 	}
 }
 
