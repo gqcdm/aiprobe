@@ -47,6 +47,32 @@ func TestRunModelDiagnosticsOpenAI(t *testing.T) {
 	}
 }
 
+func TestRunModelDiagnosticsOpenAIWithVersionedBaseURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/chat/completions":
+			w.Header().Set("Content-Type", "text/event-stream")
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				t.Fatal("expected flusher")
+			}
+			_, _ = fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\n")
+			flusher.Flush()
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	result, warnings := RunModelDiagnostics(schema.ProviderOpenAICompatible, server.URL+"/v1", "test-key", []schema.Model{{ID: "gpt-4.1-mini", Label: "gpt-4.1-mini"}}, 1)
+	if len(warnings) != 0 {
+		t.Fatalf("expected no warnings, got %v", warnings)
+	}
+	if len(result) != 1 || !result[0].Available || result[0].Status != "ok" {
+		t.Fatalf("unexpected diagnostics %#v", result)
+	}
+}
+
 func TestRunModelDiagnosticsUnsupportedProvider(t *testing.T) {
 	result, warnings := RunModelDiagnostics(schema.ProviderUnknown, "https://example.com", "test-key", []schema.Model{{ID: "x"}}, 1)
 	if len(result) != 1 {

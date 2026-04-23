@@ -36,6 +36,25 @@ func TestOpenAICompatibleAdapter(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleAdapterWithVersionedBaseURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"data":[{"id":"gpt-4.1-mini","object":"model","owned_by":"openai"}]}`)
+	}))
+	defer server.Close()
+
+	result, err := openai.New().Probe(server.URL+"/v1", "test-key")
+	if err != nil {
+		t.Fatalf("probe returned error: %v", err)
+	}
+	if result.Provider != schema.ProviderOpenAICompatible || len(result.Models) != 1 {
+		t.Fatalf("unexpected result %#v", result)
+	}
+}
+
 func TestOpenAICompatibleAuthFailure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -55,11 +74,14 @@ func TestOpenAICompatibleAuthFailure(t *testing.T) {
 
 func TestAnthropicAdapter(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" {
+			t.Fatalf("unexpected anthropic path %s", r.URL.Path)
+		}
 		if r.Header.Get("x-api-key") != "test-key" || r.Header.Get("anthropic-version") == "" {
 			t.Fatalf("missing anthropic headers")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprint(w, `{"data":[{"id":"claude-3-7-sonnet","display_name":"Claude Sonnet"}],"has_more":false}`)
+		_, _ = fmt.Fprint(w, `{"data":[{"id":"claude-3-7-sonnet","display_name":"Claude Sonnet"}],"first_id":"claude-3-7-sonnet","last_id":"claude-3-7-sonnet","has_more":false}`)
 	}))
 	defer server.Close()
 
@@ -69,6 +91,22 @@ func TestAnthropicAdapter(t *testing.T) {
 	}
 	if result.Provider != schema.ProviderAnthropic || len(result.Models) != 1 {
 		t.Fatalf("unexpected result %#v", result)
+	}
+}
+
+func TestAnthropicAdapterRejectsOpenAIShapedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"data":[{"id":"gpt-4.1-mini","object":"model","owned_by":"openai"}]}`)
+	}))
+	defer server.Close()
+
+	result, err := anthropic.New().Probe(server.URL, "test-key")
+	if err != nil {
+		t.Fatalf("probe returned error: %v", err)
+	}
+	if result.FailureKind != schema.FailureInvalidResponse {
+		t.Fatalf("expected invalid response, got %#v", result)
 	}
 }
 
@@ -110,6 +148,22 @@ func TestGeminiAdapter(t *testing.T) {
 	}
 	if result.Provider != schema.ProviderGemini || len(result.Models) != 1 {
 		t.Fatalf("unexpected result %#v", result)
+	}
+}
+
+func TestGeminiAdapterRejectsOpenAIShapedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprint(w, `{"models":[{"id":"gpt-4.1-mini","object":"model"}]}`)
+	}))
+	defer server.Close()
+
+	result, err := gemini.New().Probe(server.URL, "test-key")
+	if err != nil {
+		t.Fatalf("probe returned error: %v", err)
+	}
+	if result.FailureKind != schema.FailureInvalidResponse {
+		t.Fatalf("expected invalid response, got %#v", result)
 	}
 }
 

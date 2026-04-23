@@ -94,3 +94,50 @@ func TestAmbiguousDetection(t *testing.T) {
 		t.Fatalf("expected diagnostics to remain skipped, got %q", output.Diagnostics.Status)
 	}
 }
+
+func TestProbeResultsPreferOpenAIWhenOthersReturnInvalidResponses(t *testing.T) {
+	engine := NewEngine(
+		stubAdapter{
+			provider: schema.ProviderOpenAICompatible,
+			apiType:  "openai-compatible",
+			result: ProbeResult{
+				Provider:        schema.ProviderOpenAICompatible,
+				APIType:         "openai-compatible",
+				Confidence:      schema.ConfidenceHigh,
+				ModelListSource: "https://example.com/v1/models",
+				Models:          []schema.Model{{ID: "gpt-4.1-mini", Retrieved: true}},
+			},
+		},
+		stubAdapter{
+			provider: schema.ProviderAnthropic,
+			apiType:  "anthropic",
+			result: ProbeResult{
+				Provider:    schema.ProviderAnthropic,
+				APIType:     "anthropic",
+				Confidence:  schema.ConfidenceMedium,
+				FailureKind: schema.FailureInvalidResponse,
+			},
+		},
+		stubAdapter{
+			provider: schema.ProviderGemini,
+			apiType:  "gemini",
+			result: ProbeResult{
+				Provider:    schema.ProviderGemini,
+				APIType:     "gemini",
+				Confidence:  schema.ConfidenceMedium,
+				FailureKind: schema.FailureInvalidResponse,
+			},
+		},
+	)
+
+	output, err := engine.Detect(Input{BaseURL: "https://example.com", APIKey: "test"})
+	if err != nil {
+		t.Fatalf("Detect returned error: %v", err)
+	}
+	if output.Detection.Provider != schema.ProviderOpenAICompatible {
+		t.Fatalf("expected openai-compatible provider, got %q", output.Detection.Provider)
+	}
+	if len(output.Models) != 1 {
+		t.Fatalf("expected detected models, got %#v", output.Models)
+	}
+}
