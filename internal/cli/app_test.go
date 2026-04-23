@@ -287,14 +287,18 @@ func TestTestCommandShowsProgressForTextOutput(t *testing.T) {
 	}
 	progress := stderr.String()
 	for _, needle := range []string{
-		"[1/4] Detecting provider and models...",
-		"[2/4] Running endpoint diagnostics (samples=1)...",
-		"[3/4] Running model diagnostics (1 models, samples=1)...",
-		"[4/4] Rendering result...",
+		"[1/5] Detecting provider and models...",
+		"[2/5] Running endpoint diagnostics (samples=1)...",
+		"[3/5] Running model diagnostics (1 models, samples=1)...",
+		"[4/5] Generating sample outputs (1 models)...",
+		"[5/5] Rendering result...",
 	} {
 		if !strings.Contains(progress, needle) {
 			t.Fatalf("expected progress output to contain %q, got %q", needle, progress)
 		}
+	}
+	if !strings.Contains(stdout.String(), "Endpoint Latency (ms):") || !strings.Contains(stdout.String(), "Sample Outputs:") {
+		t.Fatalf("expected text output to include latency and sample outputs, got %q", stdout.String())
 	}
 }
 
@@ -343,6 +347,9 @@ func TestTestCommandJSONOutputRemainsClean(t *testing.T) {
 
 	if !json.Valid(stdout.Bytes()) {
 		t.Fatalf("expected valid json stdout, got %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), `"sample_outputs"`) {
+		t.Fatalf("expected sample outputs in json stdout, got %q", stdout.String())
 	}
 	if stderr.Len() != 0 {
 		t.Fatalf("expected no progress stderr for json output, got %q", stderr.String())

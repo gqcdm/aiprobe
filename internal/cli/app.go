@@ -181,40 +181,52 @@ func (a *App) newTestCmd() *cobra.Command {
 			}
 
 			showProgress := shouldShowTestProgress(format)
-			a.writeTestProgress(showProgress, "[1/4] Detecting provider and models...")
+			a.writeTestProgress(showProgress, "[1/5] Detecting provider and models...")
 
 			output, err := a.engine.Detect(detect.Input{BaseURL: baseURL, APIKey: apiKey})
 			if err != nil {
 				return err
 			}
-			a.writeTestProgress(showProgress, "[1/4] Detected %s (%d models found)", output.Detection.Provider, len(output.Models))
+			a.writeTestProgress(showProgress, "[1/5] Detected %s (%d models found)", output.Detection.Provider, len(output.Models))
 
 			adapter := providers.ByProvider(output.Detection.Provider)
 			if adapter == nil {
-				a.writeTestProgress(showProgress, "[2/4] Skipping endpoint diagnostics (provider unresolved)")
+				a.writeTestProgress(showProgress, "[2/5] Skipping endpoint diagnostics (provider unresolved)")
 				output.Diagnostics = schema.DiagnosticsResult{
 					Status:      "failed",
 					FailureKind: schema.FailureDiagnosticsSkipped,
 				}
 			} else {
-				a.writeTestProgress(showProgress, "[2/4] Running endpoint diagnostics (samples=%d)...", samples)
+				a.writeTestProgress(showProgress, "[2/5] Running endpoint diagnostics (samples=%d)...", samples)
 				output.Diagnostics = diagnostics.Run(adapter, diagnostics.Input{BaseURL: baseURL, APIKey: apiKey, Samples: samples})
-				a.writeTestProgress(showProgress, "[2/4] Endpoint diagnostics %s", output.Diagnostics.Status)
+				a.writeTestProgress(showProgress, "[2/5] Endpoint diagnostics %s", output.Diagnostics.Status)
 
 				if len(output.Models) == 0 {
-					a.writeTestProgress(showProgress, "[3/4] Skipping model diagnostics (no models found)")
+					a.writeTestProgress(showProgress, "[3/5] Skipping model diagnostics (no models found)")
 				} else {
-					a.writeTestProgress(showProgress, "[3/4] Running model diagnostics (%d models, samples=%d)...", len(output.Models), samples)
+					a.writeTestProgress(showProgress, "[3/5] Running model diagnostics (%d models, samples=%d)...", len(output.Models), samples)
 				}
 				modelDiagnostics, warnings := diagnostics.RunModelDiagnostics(output.Detection.Provider, baseURL, apiKey, output.Models, samples)
 				output.ModelDiagnostics = modelDiagnostics
 				output.Warnings = append(output.Warnings, warnings...)
 				if len(output.Models) > 0 {
-					a.writeTestProgress(showProgress, "[3/4] Model diagnostics finished (%d results)", len(output.ModelDiagnostics))
+					a.writeTestProgress(showProgress, "[3/5] Model diagnostics finished (%d results)", len(output.ModelDiagnostics))
+				}
+
+				if len(output.Models) == 0 {
+					a.writeTestProgress(showProgress, "[4/5] Skipping sample outputs (no models found)")
+				} else {
+					a.writeTestProgress(showProgress, "[4/5] Generating sample outputs (%d models)...", len(output.Models))
+				}
+				sampleOutputs, sampleWarnings := diagnostics.RunSampleOutputs(output.Detection.Provider, baseURL, apiKey, output.Models)
+				output.SampleOutputs = sampleOutputs
+				output.Warnings = append(output.Warnings, sampleWarnings...)
+				if len(output.Models) > 0 {
+					a.writeTestProgress(showProgress, "[4/5] Sample outputs finished (%d results)", len(output.SampleOutputs))
 				}
 			}
 
-			a.writeTestProgress(showProgress, "[4/4] Rendering result...")
+			a.writeTestProgress(showProgress, "[5/5] Rendering result...")
 
 			if err := render.Write(a.stdout, output, format); err != nil {
 				return err
