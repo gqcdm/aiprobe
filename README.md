@@ -76,6 +76,12 @@ aiprobe detect --base-url https://example.com/v1 --api-key YOUR_KEY --format jso
 aiprobe test --base-url https://example.com/v1 --api-key YOUR_KEY
 ```
 
+如果你更想一条命令直接跑完整探测，也可以用快捷写法：
+
+```bash
+aiprobe -t https://example.com/v1 YOUR_KEY
+```
+
 默认会先执行探测，再自动执行 diagnostics。你也可以自定义采样次数：
 
 ```bash
