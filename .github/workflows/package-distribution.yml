@@ -44,9 +44,7 @@ jobs:
           cd dist/windows && zip -q ../aiprobe-v${VERSION}-windows-amd64.zip aiprobe.exe && cd ../..
 
       - name: Install nfpm
-        uses: goreleaser/nfpm-action@v1
-        with:
-          version: latest
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.3
 
       - name: Build deb and rpm packages
         run: |
