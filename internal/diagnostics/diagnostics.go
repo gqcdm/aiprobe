@@ -187,7 +187,7 @@ func clearFailureIfOK(status string, failure schema.FailureKind) schema.FailureK
 }
 
 func probeOpenAIModelTTFT(baseURL, apiKey, modelID string) (int64, schema.FailureKind, error) {
-	endpoint, err := httpx.JoinURL(baseURL, "v1", "chat", "completions")
+	endpoint, err := httpx.JoinVersionedURL(baseURL, "v1", "chat", "completions")
 	if err != nil {
 		return 0, "", err
 	}
@@ -206,7 +206,7 @@ func probeOpenAIModelTTFT(baseURL, apiKey, modelID string) (int64, schema.Failur
 }
 
 func probeAnthropicModelTTFT(baseURL, apiKey, modelID string) (int64, schema.FailureKind, error) {
-	endpoint, err := httpx.JoinURL(baseURL, "v1", "messages")
+	endpoint, err := httpx.JoinVersionedURL(baseURL, "v1", "messages")
 	if err != nil {
 		return 0, "", err
 	}
@@ -225,7 +225,7 @@ func probeAnthropicModelTTFT(baseURL, apiKey, modelID string) (int64, schema.Fai
 }
 
 func probeGeminiModelTTFT(baseURL, apiKey, modelID string) (int64, schema.FailureKind, error) {
-	endpoint, err := httpx.JoinURL(baseURL, "v1beta", "models", modelID+":streamGenerateContent")
+	endpoint, err := httpx.JoinVersionedURL(baseURL, "v1beta", "models", modelID+":streamGenerateContent")
 	if err != nil {
 		return 0, "", err
 	}
